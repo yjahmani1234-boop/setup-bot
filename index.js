@@ -1,4 +1,5 @@
 const { Client, GatewayIntentBits, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder, EmbedBuilder, Events } = require('discord.js');
+const http = require('http');
 
 const TOKEN = process.env.TOKEN;
 
@@ -14,7 +15,6 @@ client.once('ready', () => {
     console.log(`[+] Broadcast Bot is online: ${client.user.tag}`);
 });
 
-// 1. أمر فتح اللوحة (!panel)
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
@@ -38,17 +38,16 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// 2. التعامل مع الأزرار والنوافذ
 client.on(Events.InteractionCreate, async (interaction) => {
-    
-    // إذا ضغط على زر "إرسال رسالة"
     if (interaction.isButton() && interaction.customId === 'open_broadcast') {
-        
-        // إنشاء قائمة منسدلة فيها كل الرومات النصية
         const channels = interaction.guild.channels.cache
-            .filter(c => c.type === 0) // 0 يعني Text Channel
+            .filter(c => c.type === 0)
             .map(c => ({ label: '#' + c.name, value: c.id }))
-            .slice(0, 25); // ديسكورد يسمح بـ 25 خيار كحد أقصى
+            .slice(0, 25);
+
+        if (channels.length === 0) {
+            return interaction.reply({ content: 'ما في رومات نصية!', ephemeral: true });
+        }
 
         const select = new StringSelectMenuBuilder()
             .setCustomId('select_channel')
@@ -64,13 +63,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
     }
 
-    // إذا اختار الروم من القائمة
     if (interaction.isStringSelectMenu() && interaction.customId === 'select_channel') {
         const channelId = interaction.values[0];
 
-        // نجهز النافذة اللي بيكتب فيها الكلام
         const modal = new ModalBuilder()
-            .setCustomId(`broadcast_modal_${channelId}`) // نخزن ايدي الروم في اسم النافذة
+            .setCustomId(`broadcast_modal_${channelId}`)
             .setTitle('اكتب رسالتك');
 
         const textInput = new TextInputBuilder()
@@ -86,9 +83,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.showModal(modal);
     }
 
-    // إذا كتب الكلام وضغط إرسال في النافذة
     if (interaction.isModalSubmit() && interaction.customId.startsWith('broadcast_modal_')) {
-        // نستخرج ايدي الروم من اسم النافذة
         const channelId = interaction.customId.split('_')[2]; 
         const text = interaction.fields.getTextInputValue('message_text');
 
@@ -103,6 +98,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 });
 
-client.login(TOKEN);
-const http = require('http');
+// ═══════════════════════════════════════════
+// هذا الجزء عشان Render ما يطفي البوت
+// ═══════════════════════════════════════════
 http.createServer((req, res) => res.end('Bot is alive!')).listen(process.env.PORT || 3000);
+
+client.login(TOKEN);
