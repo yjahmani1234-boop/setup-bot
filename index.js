@@ -1,5 +1,8 @@
 const { Client, GatewayIntentBits, PermissionFlagsBits, ChannelType } = require('discord.js');
 
+// ═══════════════════════════════════════════
+// ⚠️ حط التوكن تبعك هنا بين علامات التنصيص
+// ═══════════════════════════════════════════
 const TOKEN = "MTU2MTA5MzE0MjY1OTIwMzExMg.G7zGIV.y3-rPwlj8ekuLE3Okw5csCV-xOm0rXPRW6MJoM"; 
 
 const client = new Client({
@@ -19,6 +22,7 @@ client.on('messageCreate', async (message) => {
         const guild = message.guild;
         await message.reply("⏳ جاري بناء السيرفر، استنى شوي...");
 
+        // 1. إنشاء الرتب
         const roles = [
             { name: '👑 Owner', color: '#FF0000', hoist: true, permissions: [PermissionFlagsBits.Administrator] },
             { name: '🛡️ Admin', color: '#EF4444', hoist: true, permissions: [PermissionFlagsBits.Administrator] },
@@ -30,9 +34,15 @@ client.on('messageCreate', async (message) => {
         ];
 
         for (const r of roles) {
-            await guild.roles.create({ name: r.name, color: r.color, hoist: r.hoist, permissions: r.permissions }).catch(()=>{});
+            await guild.roles.create({
+                name: r.name,
+                color: r.color,
+                hoist: r.hoist,
+                permissions: r.permissions
+            }).catch(console.error);
         }
 
+        // 2. إنشاء الأقسام والرومات
         const categories = [
             { name: '📌 INFORMATION', channels: [
                 { name: 'welcome', type: ChannelType.GuildText },
@@ -63,13 +73,23 @@ client.on('messageCreate', async (message) => {
         ];
 
         for (const cat of categories) {
-            const category = await guild.channels.create({ name: cat.name, type: ChannelType.GuildCategory }).catch(()=>{});
+            const category = await guild.channels.create({
+                name: cat.name,
+                type: ChannelType.GuildCategory
+            }).catch(console.error);
+
             if (!category) continue;
+
             for (const ch of cat.channels) {
-                await guild.channels.create({ name: ch.name, type: ch.type, parent: category.id }).catch(()=>{});
+                await guild.channels.create({
+                    name: ch.name,
+                    type: ch.type,
+                    parent: category.id
+                }).catch(console.error);
             }
         }
-        message.channel.send("✅ **تم بناء السيرفر بنجاح!**");
+
+        message.channel.send("✅ **تم بناء السيرفر بنجاح!** كل الرتب والرومات جاهزة.");
     }
 });
 
