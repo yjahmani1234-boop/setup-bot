@@ -93,14 +93,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
             await targetChannel.send(text);
             await interaction.reply({ content: `✅ تم إرسال رسالتك إلى ${targetChannel}`, ephemeral: true });
         } else {
-            await interaction.reply({ content: '❌ ما قدرت ألاقي الروم، يمكن انحذف.', ephemeral: true });
+            await interaction.reply({ content: '❌ ما قدرت ألاقي الروم.', ephemeral: true });
         }
     }
 });
 
-// ═══════════════════════════════════════════
-// هذا الجزء عشان Render ما يطفي البوت
-// ═══════════════════════════════════════════
 http.createServer((req, res) => res.end('Bot is alive!')).listen(process.env.PORT || 3000);
 
 client.login(TOKEN);
