@@ -3,8 +3,7 @@ const { Client, GatewayIntentBits, PermissionFlagsBits, ChannelType } = require(
 // ═══════════════════════════════════════════
 // ⚠️ حط التوكن تبعك هنا بين علامات التنصيص
 // ═══════════════════════════════════════════
-const TOKEN = "MTU2MTA5MzE0MjY1OTIwMzExMg.G7zGIV.y3-rPwlj8ekuLE3Okw5csCV-xOm0rXPRW6MJoM"; 
-
+const TOKEN = process.env.TOKEN;
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
