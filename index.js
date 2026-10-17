@@ -1,6 +1,6 @@
-const { Client, GatewayIntentBits, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder, EmbedBuilder, Events } = require('discord.js');
 
-const TOKEN = process.env.TOKEN; 
+const TOKEN = process.env.TOKEN;
 
 const client = new Client({
     intents: [
@@ -11,80 +11,95 @@ const client = new Client({
 });
 
 client.once('ready', () => {
-    console.log(`[+] Setup Bot is online: ${client.user.tag}`);
+    console.log(`[+] Broadcast Bot is online: ${client.user.tag}`);
 });
 
+// 1. أمر فتح اللوحة (!panel)
 client.on('messageCreate', async (message) => {
-    if (message.content === '!setup' && message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        const guild = message.guild;
-        await message.reply("⏳ جاري بناء السيرفر بالعربي، استنى شوي...");
+    if (message.author.bot) return;
+    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
 
-        const roles = [
-            { name: '👑 المالك', color: '#FF0000', hoist: true, permissions: [PermissionFlagsBits.Administrator] },
-            { name: '🛡️ الإدارة', color: '#EF4444', hoist: true, permissions: [PermissionFlagsBits.Administrator] },
-            { name: '⚔️ المشرف', color: '#F59E0B', hoist: true, permissions: [PermissionFlagsBits.KickMembers, PermissionFlagsBits.BanMembers, PermissionFlagsBits.ModerateMembers] },
-            { name: '💎 مميز', color: '#8B5CF6', hoist: true, permissions: [] },
-            { name: '⭐ موثوق', color: '#06B6D4', hoist: true, permissions: [] },
-            { name: '✅ موثق', color: '#22C55E', hoist: true, permissions: [] },
-            { name: '👤 عضو', color: '#6B7280', hoist: false, permissions: [] },
-        ];
+    if (message.content === '!panel') {
+        const embed = new EmbedBuilder()
+            .setTitle('📢 لوحة الإذاعة')
+            .setDescription('اضغط على الزر تحت عشان ترسل رسالة لأي روم.')
+            .setColor(0x5865F2);
 
-        for (const r of roles) {
-            await guild.roles.create({
-                name: r.name,
-                color: r.color,
-                hoist: r.hoist,
-                permissions: r.permissions
-            }).catch(console.error);
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('open_broadcast')
+                .setLabel('إرسال رسالة')
+                .setEmoji('📝')
+                .setStyle(ButtonStyle.Primary)
+        );
+
+        await message.channel.send({ embeds: [embed], components: [row] });
+        message.delete().catch(()=>{});
+    }
+});
+
+// 2. التعامل مع الأزرار والنوافذ
+client.on(Events.InteractionCreate, async (interaction) => {
+    
+    // إذا ضغط على زر "إرسال رسالة"
+    if (interaction.isButton() && interaction.customId === 'open_broadcast') {
+        
+        // إنشاء قائمة منسدلة فيها كل الرومات النصية
+        const channels = interaction.guild.channels.cache
+            .filter(c => c.type === 0) // 0 يعني Text Channel
+            .map(c => ({ label: '#' + c.name, value: c.id }))
+            .slice(0, 25); // ديسكورد يسمح بـ 25 خيار كحد أقصى
+
+        const select = new StringSelectMenuBuilder()
+            .setCustomId('select_channel')
+            .setPlaceholder('اختر الروم اللي بدك ترسل فيه...')
+            .addOptions(channels);
+
+        const row = new ActionRowBuilder().addComponents(select);
+
+        await interaction.reply({ 
+            content: 'اختر الروم أولاً:', 
+            components: [row], 
+            ephemeral: true 
+        });
+    }
+
+    // إذا اختار الروم من القائمة
+    if (interaction.isStringSelectMenu() && interaction.customId === 'select_channel') {
+        const channelId = interaction.values[0];
+
+        // نجهز النافذة اللي بيكتب فيها الكلام
+        const modal = new ModalBuilder()
+            .setCustomId(`broadcast_modal_${channelId}`) // نخزن ايدي الروم في اسم النافذة
+            .setTitle('اكتب رسالتك');
+
+        const textInput = new TextInputBuilder()
+            .setCustomId('message_text')
+            .setLabel('الرسالة')
+            .setStyle(TextInputStyle.Paragraph)
+            .setPlaceholder('اكتب الكلام اللي بدك تبعته هنا...')
+            .setRequired(true);
+
+        const actionRow = new ActionRowBuilder().addComponents(textInput);
+        modal.addComponents(actionRow);
+
+        await interaction.showModal(modal);
+    }
+
+    // إذا كتب الكلام وضغط إرسال في النافذة
+    if (interaction.isModalSubmit() && interaction.customId.startsWith('broadcast_modal_')) {
+        // نستخرج ايدي الروم من اسم النافذة
+        const channelId = interaction.customId.split('_')[2]; 
+        const text = interaction.fields.getTextInputValue('message_text');
+
+        const targetChannel = interaction.guild.channels.cache.get(channelId);
+        
+        if (targetChannel) {
+            await targetChannel.send(text);
+            await interaction.reply({ content: `✅ تم إرسال رسالتك إلى ${targetChannel}`, ephemeral: true });
+        } else {
+            await interaction.reply({ content: '❌ ما قدرت ألاقي الروم، يمكن انحذف.', ephemeral: true });
         }
-
-        const categories = [
-            { name: '📌 المعلومات الأساسية', channels: [
-                { name: 'الترحيب', type: ChannelType.GuildText },
-                { name: 'القوانين', type: ChannelType.GuildText },
-                { name: 'الإعلانات', type: ChannelType.GuildText },
-                { name: 'التقييمات', type: ChannelType.GuildText },
-            ]},
-            { name: '🛒 المتجر (أدوات مجانية)', channels: [
-                { name: 'طلب-أداة', type: ChannelType.GuildText },
-                { name: 'أدوات-مجانية', type: ChannelType.GuildText },
-                { name: 'الأسعار', type: ChannelType.GuildText },
-                { name: 'الطلبات', type: ChannelType.GuildText },
-            ]},
-            { name: '💬 المجتمع', channels: [
-                { name: 'دردشة-عامة', type: ChannelType.GuildText },
-                { name: 'مواضيع-جانبية', type: ChannelType.GuildText },
-                { name: 'ميمز', type: ChannelType.GuildText },
-            ]},
-            { name: '🎫 الدعم الفني', channels: [
-                { name: 'الدعم', type: ChannelType.GuildText },
-                { name: 'الأسئلة-الشائعة', type: ChannelType.GuildText },
-            ]},
-            { name: '🔊 الصوتيات', channels: [
-                { name: 'عام', type: ChannelType.GuildVoice },
-                { name: 'موسيقى', type: ChannelType.GuildVoice },
-                { name: 'ألعاب', type: ChannelType.GuildVoice },
-            ]}
-        ];
-
-        for (const cat of categories) {
-            const category = await guild.channels.create({
-                name: cat.name,
-                type: ChannelType.GuildCategory
-            }).catch(console.error);
-
-            if (!category) continue;
-
-            for (const ch of cat.channels) {
-                await guild.channels.create({
-                    name: ch.name,
-                    type: ch.type,
-                    parent: category.id
-                }).catch(console.error);
-            }
-        }
-
-        message.channel.send("✅ **تم بناء السيرفر بالعربي بنجاح!** كل الرتب والرومات (بما فيها رومات الأدوات المجانية) جاهزة.");
     }
 });
 
